@@ -93,7 +93,8 @@ print(f"\nRefined Prediction (outliers removed): Based on avg {avg_growth_filter
       f"It needs about {math.ceil(total_needed_servers_filtered)} servers to next 3 years (+20% redundancy).")
 
 # 2.2 =================================================================
-"""
+# Like ex 1.3
+virality_query = """
 SELECT posts.id, posts.content, COUNT(DISTINCT comments.id) + COUNT(DISTINCT reactions.id) AS interactions
 FROM posts
 LEFT JOIN comments ON posts.id = comments.post_id
@@ -102,15 +103,19 @@ GROUP BY posts.id
 ORDER BY interactions DESC
 LIMIT 3;
 """
-# Like ex 1.3
+
+virality_df = pandas.read_sql_query(virality_query, conn)
+print('===============================================================')
+print('\nTask 2.2: Virality')
+print(virality_df)
 
 # 2.3 =================================================================
 # Note that engagement having created_at is comments not reactions. Both comments and reactions's created_at is not null as setting default.
 # Find min created_at of comments for each post, then calculate the average of gap between post time and first comment time.
 # By minute
-"""
+first_comment_time_query = """
 -- SELECT AVG(first_comment_time - post_time)
-SELECT AVG((strftime('%s', first_comment_time) - strftime('%s', post_time))/60)
+SELECT AVG((strftime('%s', first_comment_time) - strftime('%s', post_time))/60) AS avg_time_to_first_comment
 FROM (
     SELECT posts.id, posts.created_at AS post_time, MIN(comments.created_at) AS first_comment_time
     FROM posts
@@ -119,9 +124,9 @@ FROM (
 );
 """
 
-"""
+last_comment_time_query = """
 -- SELECT AVG(last_comment_time - post_time)
-SELECT AVG((strftime('%s', last_comment_time) - strftime('%s', post_time))/60)
+SELECT AVG((strftime('%s', last_comment_time) - strftime('%s', post_time))/60) AS avg_time_to_last_comment
 FROM (
     SELECT posts.id, posts.created_at AS post_time, MAX(comments.created_at) AS last_comment_time
     FROM posts
@@ -129,6 +134,15 @@ FROM (
     GROUP BY posts.id
 );
 """
+
+first_comment_time_df = pandas.read_sql_query(first_comment_time_query, conn)
+last_comment_time_df = pandas.read_sql_query(last_comment_time_query, conn)
+print('===============================================================')
+print('\nTask 2.3: Content Lifecycle')
+print('\nAverage time between published post and first comment (minutes):')
+print(first_comment_time_df)
+print('\nAverage time between published post and last comment (minutes):')
+print(last_comment_time_df)
 
 # 2.4 =================================================================
 
