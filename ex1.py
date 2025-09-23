@@ -103,5 +103,7 @@ print('===============================================================')
 print('\nTask 1.4: Spammers')
 print(spammers_df)
 
+# UNION ALL keeps duplicates, while UNION removes duplicates. But in this case ('true' AS is_post), there should not be duplicates anyway.
+
 # Don't forget to close the database!!
 conn.close()

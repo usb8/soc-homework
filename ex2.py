@@ -145,6 +145,34 @@ print('\nAverage time between published post and last comment (minutes):')
 print(last_comment_time_df)
 
 # 2.4 =================================================================
+# Like ex 1.4
+
+connections_query = """
+SELECT
+    user_id_poster,
+    user_id_reactor,
+    COUNT(*) AS engagement_number
+FROM (
+    SELECT p.user_id AS user_id_poster, c.user_id AS user_id_reactor
+    FROM posts p
+    JOIN comments c ON (p.id = c.post_id AND p.user_id != c.user_id)
+
+    UNION ALL
+
+    SELECT p.user_id AS user_id_poster, r.user_id AS user_id_reactor
+    FROM posts p
+    JOIN reactions r ON (p.id = r.post_id AND p.user_id != r.user_id)
+)
+GROUP BY user_id_poster, user_id_reactor
+ORDER BY engagement_number DESC
+LIMIT 3;
+"""
+
+connections_df = pandas.read_sql_query(connections_query, conn)
+print('===============================================================')
+print('\nTask 2.4: Connections')
+print(connections_df)
+
 
 # Don't forget to close the database!!
 conn.close()
