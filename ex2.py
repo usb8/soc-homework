@@ -33,7 +33,8 @@ GROUP BY month
 ORDER BY month;
 """
 monthly_counts = pandas.read_sql_query(growth_of_posts_query, conn)
-print("\n--- Trend: Monthly and Cumulative Posts for growth_of_posts_query ---")
+print('----------------------')
+print("\nTrend: Monthly and Cumulative Posts for growth_of_posts_query")
 print(monthly_counts)
 
 # 2.1.2. Plot
@@ -48,18 +49,21 @@ plt.show()
 # 2.1.3. Naive growth estimate
 # Average monthly growth rate in posts
 current_total = monthly_counts['cumulative_posts'].iloc[-1]
+print(f"Current total posts: {current_total}")
 n_months = len(monthly_counts)
 avg_growth = current_total / n_months
 
 # Current servers' capacity
 current_servers = 16
 capacity_per_server = current_total / current_servers
+print(f"Capacity per server: {capacity_per_server:.2f} posts")
 
 # Predict number of servers needed in 3 years (36 months) if growth continues at the same rate
 required_capacity = avg_growth * 36
 required_capacity_redundancy = required_capacity * 1.2  # plus 20% capacity for redundancy
 total_needed_servers = (required_capacity_redundancy + current_total) / capacity_per_server
 
+print('----------------------')
 print(f"\nPrediction: Based on avg {avg_growth:.2f} posts/month historical growth, "
       f"It needs about {math.ceil(total_needed_servers)} servers to next 3 years (+20% redundancy).")
 
@@ -71,6 +75,7 @@ iqr = q3 - q1
 lower_bound = q1 - 1.5 * iqr
 upper_bound = q3 + 1.5 * iqr
 
+print('----------------------')
 print(f"\nOutlier removal bounds:\n\tLower: {lower_bound:.2f}\n\tUpper: {upper_bound:.2f}")
 
 # Filter to exclude outliers
@@ -147,10 +152,78 @@ print(last_comment_time_df)
 # 2.4 =================================================================
 # Like ex 1.4
 
-connections_query = """
+# # NOTE: A -> B
+# connections_query_1 = """
+# SELECT
+#     user_id_poster,
+#     user_id_reactor,
+#     COUNT(*) AS engagement_number
+# FROM (
+#     SELECT p.user_id AS user_id_poster, c.user_id AS user_id_reactor
+#     FROM posts p
+#     JOIN comments c ON (p.id = c.post_id AND p.user_id != c.user_id)
+
+#     UNION ALL
+
+#     SELECT p.user_id AS user_id_poster, r.user_id AS user_id_reactor
+#     FROM posts p
+#     JOIN reactions r ON (p.id = r.post_id AND p.user_id != r.user_id)
+# )
+# GROUP BY user_id_poster, user_id_reactor
+# ORDER BY engagement_number DESC
+# LIMIT 3;
+# """
+
+# connections_df_1 = pandas.read_sql_query(connections_query_1, conn)
+# print('===============================================================')
+# print('\nTask 2.4: Connections A -> B')
+# print(connections_df_1)
+
+# # NOTE: A <-> B way 1 # TODO: check AVG in case user_id_poster is odd or even
+# my_avg = 5
+# connections_query_2 = """
+#     CASE 
+#         WHEN user_id_poster <= {my_avg} THEN user_id_poster
+#         ELSE user_id_reactor
+#     END AS user_id_poster_reactor_1,
+#     CASE 
+#         WHEN user_id_poster <= {my_avg} THEN user_id_reactor
+#         ELSE user_id_poster
+#     END AS user_id_poster_reactor_2,
+#     COUNT(*) AS engagement_number
+# FROM (
+#     SELECT p.user_id AS user_id_poster, c.user_id AS user_id_reactor
+#     FROM posts p
+#     JOIN comments c ON (p.id = c.post_id AND p.user_id != c.user_id)
+
+#     UNION ALL
+
+#     SELECT p.user_id AS user_id_poster, r.user_id AS user_id_reactor
+#     FROM posts p
+#     JOIN reactions r ON (p.id = r.post_id AND p.user_id != r.user_id)
+# )
+# GROUP BY user_id_poster_reactor_1, user_id_poster_reactor_2
+# ORDER BY engagement_number DESC
+# LIMIT 3;
+# """
+
+# connections_df_2 = pandas.read_sql_query(connections_query_2, conn)
+# print('===============================================================')
+# print('\nTask 2.4: Connections A <-> B way 1')
+# print(connections_df_2)
+
+# NOTE: A <-> B way 2
+connections_query_3 = """
 SELECT
-    user_id_poster,
-    user_id_reactor,
+    CASE 
+        WHEN user_id_poster < user_id_reactor THEN user_id_poster
+        ELSE user_id_reactor
+    END AS user_id_poster_reactor_1,
+    CASE 
+        WHEN user_id_poster > user_id_reactor THEN user_id_poster
+        ELSE user_id_reactor
+    END AS user_id_poster_reactor_2,
+
     COUNT(*) AS engagement_number
 FROM (
     SELECT p.user_id AS user_id_poster, c.user_id AS user_id_reactor
@@ -163,16 +236,58 @@ FROM (
     FROM posts p
     JOIN reactions r ON (p.id = r.post_id AND p.user_id != r.user_id)
 )
-GROUP BY user_id_poster, user_id_reactor
+GROUP BY user_id_poster_reactor_1, user_id_poster_reactor_2
 ORDER BY engagement_number DESC
 LIMIT 3;
 """
 
-connections_df = pandas.read_sql_query(connections_query, conn)
+connections_df_3 = pandas.read_sql_query(connections_query_3, conn)
 print('===============================================================')
-print('\nTask 2.4: Connections')
-print(connections_df)
+print('\nTask 2.4: Connections A <-> B way 2')
+print(connections_df_3)
 
+# Rechecking
+"""
+SELECT
+    p.user_id AS user_id_poster,
+    c.user_id AS user_id_reactor,
+    COUNT(c.id) AS total_comments
+FROM posts p
+JOIN comments c ON p.id = c.post_id AND c.user_id != p.user_id
+WHERE p.user_id = 38     -- poster
+    AND c.user_id = 88     -- reactor (commenter)
+GROUP BY p.user_id, c.user_id;
+---
+SELECT
+    p.user_id AS user_id_poster,
+    r.user_id AS user_id_reactor,
+    COUNT(r.id) AS total_reactions
+FROM posts p
+JOIN reactions r ON p.id = r.post_id AND r.user_id != p.user_id
+WHERE p.user_id = 38     -- poster
+    AND r.user_id = 88     -- reactor (commenter)
+GROUP BY p.user_id, r.user_id;
+------
+SELECT
+    p.user_id AS user_id_poster,
+    c.user_id AS user_id_reactor,
+    COUNT(c.id) AS total_comments
+FROM posts p
+JOIN comments c ON p.id = c.post_id AND c.user_id != p.user_id
+WHERE p.user_id = 88     -- poster
+    AND c.user_id = 38     -- reactor (commenter)
+GROUP BY p.user_id, c.user_id;
+---
+SELECT
+    p.user_id AS user_id_poster,
+    r.user_id AS user_id_reactor,
+    COUNT(r.id) AS total_reactions
+FROM posts p
+JOIN reactions r ON p.id = r.post_id AND r.user_id != p.user_id
+WHERE p.user_id = 88     -- poster
+    AND r.user_id = 38     -- reactor (commenter)
+GROUP BY p.user_id, r.user_id;
+"""
 
 # Don't forget to close the database!!
 conn.close()
