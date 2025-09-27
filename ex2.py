@@ -65,7 +65,7 @@ total_needed_servers = (required_capacity_redundancy + current_total) / capacity
 
 print('----------------------')
 print(f"\nPrediction: Based on avg {avg_growth:.2f} posts/month historical growth, "
-      f"It needs about {math.ceil(total_needed_servers)} servers to next 3 years (+20% redundancy).")
+      f"It needs about {math.ceil(total_needed_servers)} servers (in total) to next 3 years (+20% redundancy).")
 
 # 2.2.4. Refined approach by removing outliers (using 1.5 * IQR rule)
 # December and June of each year have a high number of posts, so it's not too unusual, however we can still remove outliers for both lower_bound and upper_bound
@@ -95,7 +95,7 @@ required_capacity_redundancy_filtered = required_capacity_filtered * 1.2  # plus
 total_needed_servers_filtered = (required_capacity_redundancy_filtered + current_total) / capacity_per_server
 
 print(f"\nRefined Prediction (outliers removed): Based on avg {avg_growth_filtered:.2f} posts/month historical growth, "
-      f"It needs about {math.ceil(total_needed_servers_filtered)} servers to next 3 years (+20% redundancy).")
+      f"It needs about {math.ceil(total_needed_servers_filtered)} servers (in total) to next 3 years (+20% redundancy).")
 
 # 2.2 =================================================================
 # Like ex 1.3
@@ -124,7 +124,7 @@ SELECT AVG((strftime('%s', first_comment_time) - strftime('%s', post_time))/60) 
 FROM (
     SELECT posts.id, posts.created_at AS post_time, MIN(comments.created_at) AS first_comment_time
     FROM posts
-    LEFT JOIN comments ON posts.id = comments.post_id
+    JOIN comments ON posts.id = comments.post_id
     GROUP BY posts.id
 );
 """
@@ -135,7 +135,7 @@ SELECT AVG((strftime('%s', last_comment_time) - strftime('%s', post_time))/60) A
 FROM (
     SELECT posts.id, posts.created_at AS post_time, MAX(comments.created_at) AS last_comment_time
     FROM posts
-    LEFT JOIN comments ON posts.id = comments.post_id
+    JOIN comments ON posts.id = comments.post_id
     GROUP BY posts.id
 );
 """
